@@ -1,20 +1,30 @@
 const express = require("express");
 const app = express();
+const {connectDb} = require("./config/database.js")
+const User = require("./models/user.js")
 
+app.use(express.json());
 
-app.use("/test",(req,res)=>{
-    res.send("I will give response only when you hit /test")
+app.post("/signUp", async (req,res)=>{
+    const user = new User(req.body)
+    try{
+        await user.save();
+        res.send("User saved successfully")
+    }catch(err){
+        res.status(400).send("It's a bad request")
+    }
 })
 
-app.use("/home",(req,res)=>{
-    res.send("I will give response only when you hit /home")
+
+connectDb()
+.then(()=>{
+    console.log("Database connection established.");
+    app.listen(7777, ()=>{
+        console.log("Hello from port 7777")
+    });
+    
+})
+.catch(err =>{
+    console.error("Database cannot be connected");
 })
 
-app.use((req,res)=>{
-    res.send("Hello I have given the response");
-})
-
-
-app.listen(7777, ()=>{
-    console.log("Hello from port 7777")
-});
