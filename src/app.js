@@ -1,18 +1,61 @@
 const express = require("express");
 const app = express();
 const {connectDb} = require("./config/database.js")
-const User = require("./models/user.js")
+const User = require("./models/user.js");
+const { validateSignUpData } = require("./utils/validation.js");
+const bcrypt = require("bcrypt");
 
 app.use(express.json());
 
 //SIGNUP-API
 app.post("/signUp", async (req,res)=>{
-    const user = new User(req.body)
     try{
+    //Validate the data initially that we get from the request
+    validateSignUpData(req);
+    
+    //ENCRYPT THE PASSWORD
+    const{firstName, lastName, emailId, password} = req.body;
+
+    const passwordHash = await bcrypt.hash(password, 10);
+
+    console.log(passwordHash);
+
+    const user = new User({
+        firstName: firstName,
+        lastName: lastName,
+        emailId: emailId,
+        password: passwordHash
+    })
+    
         await user.save();
         res.send("User saved successfully")
     }catch(err){
-        res.status(400).send("It's a bad request"+err.message)
+        res.status(400).send("ERROR: "+err.message)
+    }
+})
+
+//LOGIN-API
+app.post("/login",async(req,res)=>{
+    try{
+        const {emailId, password} = req.body;
+        const user = await User.findOne({emailId: emailId})
+        console.log(user)
+
+        if(!user){
+            throw new Error("Invalid credentials");
+        }
+
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        console.log("The password is "+isPasswordValid)
+        
+        if(isPasswordValid){
+            res.send("User login successfull")
+        }else{
+            throw new Error("Invalid credentials")
+        }
+    }catch(err){
+        res.status(400).send("ERROR: " + err.message)
     }
 })
 
