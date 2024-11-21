@@ -4,8 +4,13 @@ const {connectDb} = require("./config/database.js")
 const User = require("./models/user.js");
 const { validateSignUpData } = require("./utils/validation.js");
 const bcrypt = require("bcrypt");
+const cookieParser = require("cookie-parser");
+const jwt = require("jsonwebtoken");
+const {userAuth} = require("./middlewares/auth.js")
 
 app.use(express.json());
+app.use(cookieParser());
+
 
 //SIGNUP-API
 app.post("/signUp", async (req,res)=>{
@@ -17,8 +22,6 @@ app.post("/signUp", async (req,res)=>{
     const{firstName, lastName, emailId, password} = req.body;
 
     const passwordHash = await bcrypt.hash(password, 10);
-
-    console.log(passwordHash);
 
     const user = new User({
         firstName: firstName,
@@ -39,23 +42,41 @@ app.post("/login",async(req,res)=>{
     try{
         const {emailId, password} = req.body;
         const user = await User.findOne({emailId: emailId})
-        console.log(user)
+        console.log("the user is"+user)
 
         if(!user){
             throw new Error("Invalid credentials");
         }
 
-        const isPasswordValid = await bcrypt.compare(password, user.password);
-
-        console.log("The password is "+isPasswordValid)
+        const isPasswordValid = user.validatePassword(password)
+        console.log("is the password valid:" + isPasswordValid)
         
         if(isPasswordValid){
+
+            //Create  JWT TOKEN
+            // const token = await jwt.sign({_id: user._id},"DEV@TINDER$790");
+            //SEND A COOKIE 
+            const token = await user.getJWT();
+            console.log("The token is :"+token)
+
+            res.cookie("token",token )
             res.send("User login successfull")
         }else{
             throw new Error("Invalid credentials")
         }
     }catch(err){
-        res.status(400).send("ERROR: " + err.message)
+        res.status(400).send("ERROR2: " + err.message)
+    }
+})
+
+//GET PROFILE
+app.get("/profile",userAuth,async(req,res)=>{
+    try{
+        const user = req.user;
+        res.send(user);
+    
+    }catch(err){
+        res.status(400).send("ERROR3: "+ err.message);
     }
 })
 
@@ -114,6 +135,14 @@ app.patch("/update", async(req,res)=>{
     }catch(err){
         res.status(400).send("UPDATE FAILED" +  err.message)
     }
+})
+
+//SEND CONNECTION REQUEST
+app.post("/sendConnectionRequest",async(req,res)=>{
+
+    //SENDING A CONNECTION REQUEST
+    console.log("Sending a connection request");
+    res.send("Connection request sent")
 })
 
 connectDb()
